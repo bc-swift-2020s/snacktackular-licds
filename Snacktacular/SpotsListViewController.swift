@@ -18,6 +18,8 @@ class SpotsListViewController: UIViewController {
     @IBOutlet weak var sortSegmentedControl: UISegmentedControl!
     var spots: Spots!
     var authUI: FUIAuth!
+    var locationManager: CLLocationManager!
+    var currentLocation: CLLocation!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -34,6 +36,7 @@ class SpotsListViewController: UIViewController {
     }
     
     override func viewWillAppear(_ animated: Bool) {
+        getLocation()
         spots.loadData {
             self.sortBasedOnSegmentPressed()
             self.tableView.reloadData()
@@ -80,12 +83,13 @@ class SpotsListViewController: UIViewController {
         case 0:// A-Z
             spots.spotArray.sort(by: {$0.name < $1.name})
         case 1:// closest
-            print("TODO")
+            spots.spotArray.sort(by: {$0.location.distance(from: currentLocation) < $1.location.distance(from: currentLocation)})
         case 2:// avg. rating
             print("TODO")
         default:
             print("Should have only three segments")
         }
+        tableView.reloadData()
     }
     
     @IBAction func sortSegmentedControlPressed(_ sender: UISegmentedControl) {
@@ -113,7 +117,10 @@ extension SpotsListViewController: UITableViewDelegate, UITableViewDataSource {
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath) as! SpotsTableViewCell
-        cell.nameLabel.text = spots.spotArray[indexPath.row].name
+        if let currentLocation = currentLocation {
+            cell.currentLocation = currentLocation
+        }
+        cell.configureCell(spot: spots.spotArray[indexPath.row])
         return cell
     }
     
@@ -154,5 +161,61 @@ extension SpotsListViewController: FUIAuthDelegate {
         logoImageView.contentMode = .scaleAspectFit
         loginViewController.view.addSubview(logoImageView)
         return loginViewController
+    }
+    
+    func showAlert(title: String, message: String) {
+        let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        let alertAction = UIAlertAction(title: "OK", style: .default, handler: nil)
+        alertController.addAction(alertAction)
+        present(alertController, animated: true, completion: nil)
+    }
+}
+
+extension SpotsListViewController: CLLocationManagerDelegate {
+    func getLocation() {
+        locationManager = CLLocationManager()
+        locationManager.delegate = self
+    }
+    
+    func handleLocationAuthorizationStatus(status: CLAuthorizationStatus) {
+        switch status {
+        case .notDetermined:
+            locationManager.requestWhenInUseAuthorization()
+        case .authorizedAlways, .authorizedWhenInUse:
+            locationManager.requestLocation()
+        case .denied:
+            showAlertToPrivacySettings(title: "User has not authorized location services", message: "Select 'Settings' below to open device settings and enable location services for this app.")
+        case .restricted:
+            showAlert(title: "Location services denied", message: "It may be that parental control are restricting location use in this app.")
+        }
+    }
+    
+    func showAlertToPrivacySettings(title: String, message: String) {
+        let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else {
+            print("Something went wrong getting the UIApplication.openSettingsURLString")
+            return
+        }
+        let settingsActions = UIAlertAction(title: "Settings", style: .default) { value in
+            UIApplication.shared.open(settingsURL, options: [:], completionHandler: nil)
+        }
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
+        alertController.addAction(settingsActions)
+        alertController.addAction(cancelAction)
+        present(alertController, animated: true, completion: nil )
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        handleLocationAuthorizationStatus(status: status)
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        currentLocation = locations.last
+        print("Current Location is \(currentLocation.coordinate.longitude), \(currentLocation.coordinate.latitude)")
+        sortBasedOnSegmentPressed()
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("Failed to get user location.")
     }
 }
