@@ -37,6 +37,7 @@ class SpotsListViewController: UIViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         getLocation()
+        navigationController?.setToolbarHidden(false, animated: false)
         spots.loadData {
             self.sortBasedOnSegmentPressed()
             self.tableView.reloadData()
@@ -83,7 +84,9 @@ class SpotsListViewController: UIViewController {
         case 0:// A-Z
             spots.spotArray.sort(by: {$0.name < $1.name})
         case 1:// closest
-            spots.spotArray.sort(by: {$0.location.distance(from: currentLocation) < $1.location.distance(from: currentLocation)})
+            if currentLocation != nil {
+                spots.spotArray.sort(by: {$0.location.distance(from: currentLocation) < $1.location.distance(from: currentLocation)})
+            }
         case 2:// avg. rating
             print("TODO")
         default:
