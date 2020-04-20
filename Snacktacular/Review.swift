@@ -54,9 +54,10 @@ class Review {
             let ref = db.collection("spots").document(spot.documentID).collection("reviews").document(self.documentID)
             ref.setData(dataToSave) { (error) in
                 if let error = error {
-                    print("ERROR: updating document \(error.localizedDescription)")
+                    print("*** ERROR: updating document \(self.documentID) in spot \(spot.documentID) \(error.localizedDescription)")
                     completion(false)
                 } else { // It worked!
+                    print("^^^ Document updated with ref ID \(ref.documentID)")
                     completion(true)
                 }
             }
@@ -64,9 +65,10 @@ class Review {
             var ref: DocumentReference? = nil // Firestore will creat a new ID for us
             ref = db.collection("spots").document(spot.documentID).collection("reviews").addDocument(data: dataToSave) { (error) in
                 if let error = error {
-                    print("ERROR: adding document \(error.localizedDescription)")
+                    print("*** ERROR: creating new document \(error.localizedDescription)")
                     completion(false)
                 } else { // It worked! Save the documentID in Spot’s documentID property
+                    print("^^^ new document created with ref ID \(ref?.documentID ?? "unknown")")
                     self.documentID = ref!.documentID
                     completion(true)
                 }
